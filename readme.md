@@ -1,6 +1,8 @@
 # 📸 Spot the Fake Photo (Screen Recapture Detection)
 
 ![Live Demo Screenshot](screenshot.png)
+![Live Demo Screenshot](screenshot1.png)
+![Live Demo Screenshot](screenshot2.png)
 
 This project tackles the problem of fraud detection in a mobile app, specifically identifying when a user takes a photo of a screen (a phone or laptop showing a picture) instead of a real object. 
 
