@@ -1,0 +1,22 @@
+# Environments
+venv/
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac OS
+.DS_Store
+
+# Datasets (Ignored to keep repo small)
+dataset/
+clean_dataset/
+
+# PyTorch checkpoints (Commented out because you PROBABLY want to submit best_model.pth)
+# *.pth
+
+# IDEs and Editors
+.vscode/
+.idea/

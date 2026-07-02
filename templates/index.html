@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spot the Fake - Live Demo</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            text-align: center; 
+            background-color: #121212; 
+            color: white; 
+            padding: 20px; 
+        }
+        h1 { margin-bottom: 5px; }
+        p { color: #aaa; margin-bottom: 20px; }
+        video { 
+            width: 100%; 
+            max-width: 500px; 
+            border-radius: 10px; 
+            border: 3px solid #333; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .result-box { 
+            padding: 15px; 
+            margin: 10px auto; 
+            max-width: 500px; 
+            border-radius: 10px; 
+            font-size: 28px; 
+            font-weight: bold; 
+            transition: all 0.2s ease-in-out;
+        }
+        .real { background-color: #1b5e20; border: 2px solid #4caf50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
+        .fake { background-color: #b71c1c; border: 2px solid #f44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.5); }
+        .neutral { background-color: #222; border: 2px solid #555; }
+        
+        .stats { font-size: 14px; font-weight: normal; margin-top: 10px; color: #ddd; }
+        
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            border-radius: 5px; 
+            border: none; 
+            background: #007bff; 
+            color: white; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: background 0.2s;
+        }
+        button:hover { background: #0056b3; }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Live Fraud Detector</h1>
+    <p>Point your camera at a real object, then point it at a screen.</p>
+    
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    
+    <div>
+        <button id="toggleBtn">Start Live Prediction</button>
+    </div>
+    
+    <div id="resultBox" class="result-box neutral">
+        Waiting for prediction...
+        <div class="stats" id="stats">Latency: -- ms | Confidence: --</div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resultBox = document.getElementById('resultBox');
+        const toggleBtn = document.getElementById('toggleBtn');
+        
+        let isPredicting = false;
+        
+        // Request webcam access (prefer rear camera on mobile)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { 
+                console.error("Error accessing webcam:", err); 
+                alert("Webcam access denied or unavailable."); 
+            });
+
+        toggleBtn.addEventListener('click', () => {
+            isPredicting = !isPredicting;
+            toggleBtn.textContent = isPredicting ? "Stop Prediction" : "Start Live Prediction";
+            toggleBtn.style.background = isPredicting ? "#f44336" : "#007bff";
+            if (isPredicting) {
+                captureAndPredict();
+            } else {
+                resultBox.className = "result-box neutral";
+                resultBox.innerHTML = 'Prediction stopped. <div class="stats">Latency: -- ms | Confidence: --</div>';
+            }
+        });
+
+        function captureAndPredict() {
+            if (!isPredicting) return;
+            
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Compress heavily for speed over the local network loop
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.prediction === "REAL") {
+                    resultBox.className = "result-box real";
+                    resultBox.innerHTML = `REAL PHOTO <div class="stats">Latency: ${data.latency_ms} ms | Confidence: ${data.confidence}</div>`;
+                } else {
+                    resultBox.className = "result-box fake";
+                    resultBox.innerHTML = `SCREEN (FAKE) <div class="stats">Latency: ${data.latency_ms} ms | Confidence: ${data.confidence}</div>`;
+                }
+                
+                // Immediately trigger next frame after a tiny delay
+                setTimeout(captureAndPredict, 150);
+            })
+            .catch(err => {
+                console.error("Prediction error:", err);
+                setTimeout(captureAndPredict, 1000); // Wait longer on error
+            });
+        }
+    </script>
+</body>
+</html>
